@@ -1,0 +1,79 @@
+
+        #substraction ######################################################################################################################################
+        """
+        frameHLS0=cv2.cvtColor(frame0,cv2.COLOR_BGR2YUV)
+        frameHLS1=cv2.cvtColor(frame1,cv2.COLOR_BGR2YUV)
+        
+        frame_substraction=substraction(frameHLS0[:,:,0],frameHLS1[:,:,0],blur_type=1,blur=21,threshold_type=0,threshold=15,show=False,erode=4,dilate=10)
+        
+        dil,contours=drawContour(frame_substraction,kernelsize=25)
+        #display(dil,name='dilatation')
+        #put boxes around objects
+        maskRec,boundRect=boundingBoxes(contours,show=False,width=W,height=H)
+        #detect the ball in one of the boxes (if any)
+        box = checkBoxes(frame_og_crop.copy(),boundRect,coeff=15.0,wave_temp=template_W,wave_temp2=template_B,show=False) #coeff=15
+        box = None
+        """
+        
+        #Subtraction background and blob ######################################################################################################################################
+        """
+        background,frame_subBackground =substractionSAD(background,frame0.copy(),frame1.copy(),idx//jump,show=True,blur=15,threshold=10.0)
+        #frame_subBackground = cv2.bitwise_and(frame_substraction , white_border, mask=None)
+        
+        ptsBlob=checkBlob(detector,frame_subBackground,frame1.copy(),idx,show=True)
+        
+        BLOB=False
+        if ptsBlob is not None:
+            allPoints=np.concatenate((allPoints,ptsBlob))
+            blobPoint=np.concatenate((blobPoint,ptsBlob)) 
+            BLOB=True 
+        """   
+            
+        #static detection ######################################################################################################################################
+        """
+        if (box is None and not static) : #did not detected moving ball, static mode on
+            static=True    
+            box=detect_ball_static(frame_og_crop.copy(),ball_model)     
+            static_box= box
+        elif box is None and static_box is not None: # still not moving, use the last detection
+            box=static_box
+        else: # moving, static mode off
+            static_box=None
+            static=False   
+        """  
+        # add the 3D to the points######################################################################################################################################            
+        """
+        # if same wavePoint, don't take it.
+        if not np.array_equal(pts, wavePoint[-1][:2]) and ((pts[0]-wavePoint[-1][0])**2+(pts[1]-wavePoint[-1][1])**2)>70:
+            if static:
+                P=[pts[0],pts[1],idx,1.5]
+            else:
+                P=[pts[0],pts[1],idx,0.75]
+            wavePoint=np.append(wavePoint,[P],axis=0) 
+            allPoints=np.append(allPoints,[P],axis=0) 
+
+        cv2.rectangle(frame_og_crop, (int(box[0]), int(box[1])),(int(box[0]+box[2]), int(box[1]+box[3])), (255,255,255), 2)
+        """
+            
+        #Particle ######################################################################################################################################
+        """
+        if ( box is not None and not static ) or BLOB:
+            if BLOB: 
+                target=ptsBlob[-1,:3]
+            else:
+                target=middle(box)
+                target=[target[0],target[1],idx]
+                
+            particles,location=particlesDetect(particles,target,idx,N=NUM_PARTICLES,width=W,height=H,sigma=POS_SIGMA)  
+            
+            diff=math.sqrt((location[0]-target[0])**2+(location[1]-target[1])**2)
+            
+            if diff<=distParLoca:
+                particleLoc=np.concatenate((particleLoc,[[target[0],target[1],idx]]))
+                allPoints=np.concatenate((allPoints,[[target[0],target[1],idx,0]]))
+        else:
+            particles,location=particlesDetect(particles,None,idx,N=NUM_PARTICLES,width=W,height=H,sigma=POS_SIGMA)  
+        """
+
+        #plot######################################################################################################################################
+        

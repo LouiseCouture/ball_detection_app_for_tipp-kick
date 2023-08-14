@@ -17,17 +17,28 @@ def substraction(y0,y1,blur_type=0,threshold_type=0,threshold=50,blur=29,show=Fa
     Returns:
         _type_: _description_
     """
-
-    if blur_type==0:
-        gb0=cv2.GaussianBlur(y0,(blur,blur),0)
-        gb1=cv2.GaussianBlur(y1,(blur,blur),0)
-    else:
-        gb0=cv2.medianBlur(y0, blur)
-        gb1=cv2.medianBlur(y1, blur)
+    diff0=np.zeros((y0.shape[0],y0.shape[1]), dtype=int)
+    diff1=np.zeros((y0.shape[0],y0.shape[1]), dtype=int)
     
-    diff0=cv2.absdiff(gb0,gb1)#+cv2.absdiff(ub0,ub1)+cv2.absdiff(vb0,vb1)
-    diff1=cv2.absdiff(gb1,gb0)#+cv2.absdiff(ub1,ub0)+cv2.absdiff(vb1,vb0)
+    for i in range(y0.shape[2]):
+        y0_chan=y0[:,:,i]
+        y1_chan=y1[:,:,i]
         
+        if blur_type==0:
+            gb0=cv2.GaussianBlur(y0_chan,(blur,blur),0)
+            gb1=cv2.GaussianBlur(y1_chan,(blur,blur),0)
+        else:
+            gb0=cv2.medianBlur(y0_chan, blur)
+            gb1=cv2.medianBlur(y1_chan, blur)
+        
+        diff0+=cv2.absdiff(gb0,gb1)#+cv2.absdiff(ub0,ub1)+cv2.absdiff(vb0,vb1)
+        diff1+=cv2.absdiff(gb1,gb0)#+cv2.absdiff(ub1,ub0)+cv2.absdiff(vb1,vb0)
+        
+    diff0 = 255 *(diff0 / diff0.max())
+    diff0 = diff0.astype(np.uint8)
+    diff1 = 255 *(diff1 / diff1.max())
+    diff1 = diff1.astype(np.uint8)
+    
     if threshold_type==0:
         _, diff0 = cv2.threshold(diff0, threshold, 255, cv2.THRESH_BINARY)
         _, diff1 = cv2.threshold(diff1, threshold, 255, cv2.THRESH_BINARY)
@@ -87,7 +98,7 @@ def substractionSAD(background,frame0,frame1,time,show=False,blur=29,threshold=1
     diff=diff.astype('uint8')
     
     diff = cv2.erode(diff, None, iterations=5)
-    diff = cv2.dilate(diff, None, iterations=10)
+    diff = cv2.dilate(diff, None, iterations=20)
 
     if show:
         display(diff,name='substractionSAD')

@@ -2,6 +2,68 @@ import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import math 
+from subtraction import display
+
+ARROW_DOWN  = 2621440
+ARROW_UP    = 2490368
+ARROW_LEFT  = 2555904
+ARROW_RIGHT = 2424832
+
+def resizeFrame(width,height,frame_og):
+    dim = (width, height)
+    # resize image
+    frame_og_crop = cv2.resize(frame_og, dim, interpolation = cv2.INTER_AREA)
+    return frame_og_crop
+
+#####################################################################################################
+
+def getTemplate(width,height,cap):
+    box=None
+        
+    opX=0
+    opY=0
+    speed=5
+    shape=36
+    print("move square to select template, press space bar to escape")
+    while(cap.isOpened()):
+        # Capture frame-by-frame
+        ret, frame_og= cap.read()
+        if ret == True:
+            frame_og_crop = resizeFrame(width,height,frame_og)
+            
+            middleY = opY+frame_og_crop.shape[0]//2
+            middleX = opX+frame_og_crop.shape[1]//2
+            
+            cv2.rectangle(frame_og_crop,(middleX+shape, middleY+shape), (middleX-shape, middleY-shape), (255,255,255), 2)
+            
+            display(frame_og_crop,name='select template')
+            
+            box=frame_og_crop[middleY-shape:middleY+shape,middleX-shape:middleX+shape,:]
+            #display(box,name='template')
+            
+        
+        key = cv2.waitKeyEx(0)
+        if key == ARROW_DOWN:
+            opY=opY+speed
+        elif key == ARROW_UP:
+            opY=opY-speed
+        elif key == ARROW_LEFT:
+            opX=opX+speed
+        elif key == ARROW_RIGHT:
+            opX=opX-speed
+        elif key == ARROW_RIGHT:
+            opX=opX-speed
+        elif key == 32:
+            break
+            
+    if box is not None:
+        cv2.imwrite("Template.png", box)
+    
+    # Closes all the frames
+    cv2.destroyAllWindows()
+    return box
+        
+#####################################################################################################
 
 def middle(box):
     """_summary_

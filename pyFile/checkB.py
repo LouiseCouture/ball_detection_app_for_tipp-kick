@@ -14,8 +14,8 @@ def initBlobDetect():
     
     # Filter by Area.
     params.filterByArea = True
-    params.minArea = 500 #700
-    params.maxArea = 3000 #3000
+    params.minArea = 50 #500 #700
+    params.maxArea = 3000 #3000 #3000
     
     # Filter by Circularity
     params.filterByCircularity = True
@@ -44,7 +44,7 @@ def initBlobDetect():
         
     return detector
 
-def checkBlob(detector,mask,frame,idx,show=False):# Setup SimpleBlobDetector parameters.
+def checkBlob(detector,mask,frame,idx,show=False,minG=1500):# Setup SimpleBlobDetector parameters.
         
     # Detect blobs.
     keypoints = detector.detect(mask)
@@ -64,12 +64,13 @@ def checkBlob(detector,mask,frame,idx,show=False):# Setup SimpleBlobDetector par
             if y-r>0 and x-r>0 and y+r<frame.shape[0] and x+r<frame.shape[1]: 
                 box_cp=frame[y-r:y+r,x-r:x+r,:]
                 sumGreen=selectGreenHSV(box_cp)
-                
+                print("score Green:",sumGreen)
                 display(box_cp,name="box blob")
                 
                 cv2.circle(frame,(x,y),1,(0,0,255),d)
                 
-                if sumGreen>1500:
+                if sumGreen>minG:
+                    print("Win Green:",sumGreen)
                     #print("blob green:",sumGreen)
                     b=[x,y,idx,0.25]
                     pts=np.append(pts,[b],axis=0) 
@@ -92,7 +93,7 @@ def checkBlob(detector,mask,frame,idx,show=False):# Setup SimpleBlobDetector par
 ######################################################################################################
 ######################################################################################################
 
-def checkBoxes(frame_diff, boundingBoxes ,show=False,coeff=150,wave_temp=None,wave_temp2=None):
+def checkBoxes(frame_diff, boundingBoxes ,show=False,coeff=150,wave_temp=None,wave_temp2=None,verify=False):
     """ select the ball among all the objects by using the wavelet transform
 
     Args:
@@ -118,8 +119,8 @@ def checkBoxes(frame_diff, boundingBoxes ,show=False,coeff=150,wave_temp=None,wa
     size_max=wave_temp.shape[0]*3
     
     maxBox=None 
-    maxGreen=-1
-    maxDiff=-1
+    maxDiff=-1.0
+    maxWave=None
     #totH=0    
 
     L=len(boundingBoxes)
@@ -129,48 +130,35 @@ def checkBoxes(frame_diff, boundingBoxes ,show=False,coeff=150,wave_temp=None,wa
         if box[3]>size_min and box[3]<size_max and box[2]>size_min and box[2]<size_max and box[2]/box[3]<100 and box[2]/box[3]>0.001:
 
             box_cp = frame_diff[box[1]:(box[1]+box[3]),box[0]:(box[0]+box[2]),:]
-                       
-            #temp_hist0 = cv2.calcHist(box_cp, [0], None,[256],[0,256] )
-            #temp_hist1 = cv2.calcHist(box_cp, [1], None,[256],[0,256] )
-            #temp_hist2 = cv2.calcHist(box_cp, [2], None,[256],[0,256] )
-            #tot_histogramm=np.sum(temp_hist0[120:130]+temp_hist1[120:130]+temp_hist2[120:130])
-            
             wave_box=Wavelet(box_cp)
 
-            diff1=cv2.absdiff(wave_temp[:2,:2,:2],wave_box[:2,:2,:2])#cv2.absdiff(wave_temp[0,0,:],wave_box[0,0,:])+cv2.absdiff(wave_temp[1,1,:],wave_box[1,1,:])
-            diff2=cv2.absdiff(wave_temp2[:2,:2,:2],wave_box[:2,:2,:2])#cv2.absdiff(wave_temp2[0,0,:],wave_box[0,0,:])+cv2.absdiff(wave_temp2[1,1,:],wave_box[1,1,:])
+            diff1=cv2.absdiff(wave_temp[:2,:2,:2],wave_box[:2,:2,:2])
+            diff2=cv2.absdiff(wave_temp2[:2,:2,:2],wave_box[:2,:2,:2])
             diff=min(np.sum(diff1),np.sum(diff2))
         
             diff=np.sum(diff)
             
-            """
-            sumGreen=selectGreenHSV(box_cp)
-            
-            if sumGreen<0.000000001:
-                sumGreen=0.000000001
-            """
-            
             diff_weight=( diff/3 ) # +( 1000 / sumGreen)#+tot_histogramm
             
+            print("coeff box: ",diff_weight  )
+        
             if diff_weight is not None and coeff>diff_weight:
                 coeff = diff_weight
                 maxBox = box
+                maxWave=wave_box
                 #maxGreen = sumGreen
-                maxDiff = diff/3
-                
-            if L==1 and diff_weight<coeff+10:
-                coeff=diff_weight
-                maxBox=box
-
-    if maxBox is None:
-        return None
+                maxDiff = diff_weight
     
-    print("coeff box and green: ",maxDiff ," => ",coeff )
+    print("coeff MAXbox: ",maxDiff  )
+      
+    if maxBox is None:
+        return None,None
+    
     
     #if show:
     #    box_cp= frame_diff[maxBox[1]:(maxBox[1]+maxBox[3]),maxBox[0]:(maxBox[0]+maxBox[2]),:]   
     #    cv2.rectangle(frame_diff, (int(box[0]), int(box[1])),(int(box[0]+box[2]), int(box[1]+box[3])), (255,255,255), 2)        
     #    display(frame_diff,name='select box')
         
-    return maxBox
+    return maxBox,maxWave
 

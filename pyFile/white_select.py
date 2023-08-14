@@ -82,7 +82,7 @@ def selectGreenHSV(frame,erode=1,dilate=4):
     blurred = cv2.GaussianBlur(frameHSV, (11, 11), 0)
 
     lower_white = np.array([40, 40,40])
-    upper_white = np.array([70, 255,255])
+    upper_white = np.array([100, 255,255]) #70
     
     mask = cv2.inRange(blurred, lower_white, upper_white)
 
