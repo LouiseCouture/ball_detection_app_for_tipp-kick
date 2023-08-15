@@ -92,6 +92,7 @@ blobPoint=np.array([[0,0,0,0]])
 #3D points wavePoint+particlePoint (x,y,t,type), 0=move, 1=static, 2=particle
 allPoints=np.array([[0,0,0,0]])
 
+sizeBox=68
 
 # RANSAC ##################################################################################################################################################
 size_slice=30 #40  #20
@@ -125,8 +126,10 @@ lastStaticPts=None
 boxStat=None
 verifyBox=None 
 
+# count nb green pixels
 lasGreenScore=-1
-GSplot=[0.0,0.0]
+#visual green score evolution
+GSplot=[0.0]
 samePlace=0
 movement=0
 
@@ -176,7 +179,7 @@ NUM_PARTICLES=100
 VEL_RANGE=50.0
 TIME_VEL=jump
 TIME=10000.0*jump
-POS_SIGMA =15.0
+POS_SIGMA =10.0
 distParLoca=60 # distance min so average of particle is correct
 location=None
 particleLoc=np.array([[0,0,0]])
@@ -251,7 +254,7 @@ while(cap.isOpened()):
                 #put boxes around objects
                 maskRec,boundRect=boundingBoxes(contours,show=True,width=W,height=H)
                 #detect the ball in one of the boxes (if any)
-                boxSub,_ = checkBoxes(frame_og_crop.copy(),boundRect,coeff=20.0,wave_temp=template_W,wave_temp2=None,show=False) #coeff=15
+                boxSub,_ = checkBoxes(frame_og_crop.copy(),boundRect,coeff=20.0,wave_temp=template_W,wave_temp2=None,show=False) #coeff=15qqq
                 
                 if boxSub is None: # don't see movement -> go back to static
                     print("------------------------WAVELET DON'T SEE MOVEMENT------------------------")
@@ -271,17 +274,17 @@ while(cap.isOpened()):
             
         else:
             
-            boxGreen=[lastStaticPts[0]-34,lastStaticPts[1]-34,68,68]
+            boxGreen=[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]
             imgBoxGreen=frame_og_crop[boxGreen[1]:(boxGreen[1]+boxGreen[3]),boxGreen[0]:(boxGreen[0]+boxGreen[2]),:]
             cv2.rectangle(frame_display, (int(boxGreen[0]), int(boxGreen[1])),(int(boxGreen[0]+boxGreen[2]), int(boxGreen[1]+boxGreen[3])), [20, 255, 20], 2) 
             
             greenScore=selectGreenHSV(imgBoxGreen)
             
-            GSplot=np.append(GSplot,[greenScore]) 
+            GSplot=np.append(GSplot,[abs(greenScore-lastGreenScore)]) 
             
-            print("Green: ",lastGreenScore,greenScore)
+            print("Green: ",lastGreenScore,greenScore,(3/100)*sizeBox*sizeBox,abs(greenScore-lastGreenScore))
             
-            if greenScore-lastGreenScore>(1/8)*lastGreenScore:
+            if abs(greenScore-lastGreenScore)>(3/100)*sizeBox*sizeBox or greenScore>(99/100)*sizeBox*sizeBox:
                 print("------------------------GREEN: MOVEMENT------------------------")
                 samePlace=0
             else:
@@ -308,11 +311,11 @@ while(cap.isOpened()):
                 print("------------------------VERIFIED STATIC: TEMPLATE UPDATE------------------------")
                 particles=RE_initialize_particles(pts,N=NUM_PARTICLES,velocity=VEL_RANGE,size=34,time=TIME)
                 
-                template=frame_og_crop[pts[1]-34:pts[1]+34,pts[0]-34:pts[0]+34,:]
+                template=frame_og_crop[pts[1]-sizeBox//2:pts[1]+sizeBox//2,pts[0]-sizeBox//2:pts[0]+sizeBox//2,:]
                 
-                display(template,name='template right now')
+                #display(template,name='template right now')
                 
-                template_W= Wavelet(template)
+                #template_W= Wavelet(template)
                 lastGreenScore=selectGreenHSV(template)
                 
                  
@@ -359,7 +362,7 @@ while(cap.isOpened()):
         """
         # static green box last static
         if verifyBox is not None:
-            checkBoxStat=[[lastStaticPts[0]-34,lastStaticPts[1]-34,68,68]]
+            checkBoxStat=[[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]]
             cv2.rectangle(frame_display, (int(verifyBox[0]), int(verifyBox[1])),(int(verifyBox[0]+verifyBox[2]), int(verifyBox[1]+verifyBox[3])), [20, 255, 20], 2) 
             
         # Blob  
@@ -406,7 +409,7 @@ ax.grid()
 
 ax.scatter(allPoints[:,1],allPoints[:,0],allPoints[:,2],marker="+",color='g')
 #ax.scatter(blobPoint[:,1],blobPoint[:,0],blobPoint[:,2],marker="+",color='b')
-ax.scatter(wavePoint[:,1],wavePoint[:,0],wavePoint[:,2],marker="+",color='r')
+#ax.scatter(wavePoint[:,1],wavePoint[:,0],wavePoint[:,2],marker="+",color='r')
 
 #ax.scatter(corrected[:,1],corrected[:,0],corrected[:,2],marker="o",color='r')
 #ax.scatter(particleLoc[:,1],particleLoc[:,0],particleLoc[:,2],marker="o",color='r')

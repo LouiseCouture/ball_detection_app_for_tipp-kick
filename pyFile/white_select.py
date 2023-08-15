@@ -76,16 +76,16 @@ def selectWhiteHSV(frame,show=False,erode=1,dilate=4,less=0):
 
 #######################################################################################################
 
-def selectGreenHSV(frame,erode=1,dilate=4):
+def selectGreenHSV(frame):
 
     frameHSV= cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
     blurred = cv2.GaussianBlur(frameHSV, (11, 11), 0)
 
-    lower_white = np.array([40, 40,40])
+    lower_white = np.array([40, 50,50])
     upper_white = np.array([100, 255,255]) #70
     
-    mask = cv2.inRange(blurred, lower_white, upper_white)
-
-    sumGreen=np.sum(mask)/255
+    mask = cv2.inRange(blurred, lower_white, upper_white)/255
+    display(mask,name="mask green")
+    sumGreen=np.sum(mask)
 
     return sumGreen
