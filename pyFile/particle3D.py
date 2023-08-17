@@ -86,15 +86,20 @@ def enforce_edges(particles,N=NUM_PARTICLES,width=WIDTH,height=HEIGHT):
 ######################################################################################################################################
 
 def compute_errors(particles,target,N=NUM_PARTICLES):
-    errors=np.zeros(N)
+    errors=np.zeros(N)+1000000.0
     
-    if target is None:
-        errors+=10000.0
-    else:
-        errors=particles[:,:2]-target[:2]
-        errors=errors*errors
-        errors=np.sum(errors,axis=1)
-        errors=np.sqrt(errors)
+    if target is not None:
+        
+        for item in target:
+            errorsOnePTS=np.zeros(N)
+            errorsOnePTS=particles[:,:2]-item[:2]
+            errorsOnePTS=errorsOnePTS*errorsOnePTS
+            errorsOnePTS=np.sum(errorsOnePTS,axis=1)
+            errorsOnePTS=np.sqrt(errorsOnePTS)
+            
+            for i in range(errors.shape[0]):
+                if errors[i]>errorsOnePTS[i]:
+                    errors[i]=errorsOnePTS[i]
         
     return errors
 

@@ -45,18 +45,24 @@ def substraction(y0,y1,blur_type=0,threshold_type=0,threshold=50,blur=29,show=Fa
     elif threshold_type==1:
         _, diff0 = cv2.threshold(diff0, threshold, 255, cv2.THRESH_TOZERO  )
         _, diff1 = cv2.threshold(diff1, threshold, 255, cv2.THRESH_TOZERO  )
-    elif threshold_type==2:
+    else:
         diff0 = cv2.adaptiveThreshold(diff0, 255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 31, 5)
         diff1 = cv2.adaptiveThreshold(diff1, 255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 31, 5)
     
     frame_diff=cv2.add(diff0,diff1)
     frame_diff = cv2.erode(frame_diff, None, iterations=erode)
     frame_diff = cv2.dilate(frame_diff, None, iterations=dilate)
+    
+    var=int(np.var(frame_diff))
+    sumTot=int(np.sum(frame_diff)/255)
      
     if show:
-        display(frame_diff,name='substraction1')
+        displayFrame=frame_diff.copy()
+        string="variance: {}".format(var)+"  sum pixel: {}".format(sumTot)
+        displayFrame = cv2.putText(displayFrame, string, (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, (220,220,220), 4, cv2.LINE_AA)
+        display(displayFrame,name='substraction1')
 
-    return frame_diff
+    return frame_diff,var,sumTot
 
 ######################################################################################################
 

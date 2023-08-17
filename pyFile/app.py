@@ -80,19 +80,21 @@ first_frame=None
 white_border=None
 
 # time jump between 2 frame
-jump=60 #60
+jump=10 #60
 # index is the time of the frame
 idx=jump*2
 
 #3D points (x,y,t,type)
-wavePoint=np.array([[0,0,0,0]])
+wavePoint=np.array([[0,0,0]])#wavePoint=np.array([[0,0,0,0]])
 #3D Blob points (x,y,t,type)
 blobPoint=np.array([[0,0,0,0]])
+
+movementPoint=np.array([[0,0,0]])
 
 #3D points wavePoint+particlePoint (x,y,t,type), 0=move, 1=static, 2=particle
 allPoints=np.array([[0,0,0,0]])
 
-sizeBox=68
+sizeBox=38
 
 # RANSAC ##################################################################################################################################################
 size_slice=30 #40  #20
@@ -127,17 +129,21 @@ boxStat=None
 verifyBox=None 
 
 # count nb green pixels
-lasGreenScore=-1
+lastGreenScore=-1
 #visual green score evolution
 GSplot=[0.0]
+variance=np.array([[0,0]])
+sumPix=np.array([0,0])
+waveCoeff=np.array([[0,0]])
+
+# if samePlace>minDetec then its VERIFIED static
 samePlace=0
+minDetec=5
 movement=0
 
-minDetec=3
 #video ##################################################################################################################################################
 #cap = cv2.VideoCapture('video_record/output.mp4')
 cap = cv2.VideoCapture(0)
-
 # Check if camera opened successfully
 if (cap.isOpened()== False): 
     print("Error opening video stream or file")
@@ -165,21 +171,24 @@ template_B = Wavelet(templateB)
 """
 template=getTemplate(W,H,cap)
 template_W= Wavelet(template)
+"""
+
+boxStat=None
 
 while boxStat is None:
     print("------------------------LOOKING FOR TEMPLATE------------------------ ")
+    ret, frame_og= cap.read()
     boxStat = detect_ball_static(frame_og,ball_model) 
-
-box=[boxStat[0]-34,boxStat[1]-34,68,68]
+    
+box=[min(boxStat[0]-sizeBox//2,0),min(boxStat[0]-sizeBox//2,0),sizeBox,sizeBox]
 template=frame_og[box[1]:(box[1]+box[3]),box[0]:(box[0]+box[2]),:]
 template_W=Wavelet(template)
-"""
+
 #particle ##################################################################################################################################################
-NUM_PARTICLES=100
+NUM_PARTICLES=200
 VEL_RANGE=50.0
 TIME_VEL=jump
-TIME=10000.0*jump
-POS_SIGMA =10.0
+POS_SIGMA =50.0
 distParLoca=60 # distance min so average of particle is correct
 location=None
 particleLoc=np.array([[0,0,0]])
@@ -217,10 +226,9 @@ while(cap.isOpened()):
             background = background.astype('float32')
             
             first_frame = frame_og_crop.copy()
-    
+
         frame0 = frame1.copy()
         frame1 = frame_og_crop.copy()
-        
            
         
         #object detection ######################################################################################################################################
@@ -271,9 +279,32 @@ while(cap.isOpened()):
         if samePlace<minDetec:
             print("------------------------OBJECT DETECTION------------------------")
             boxStat = detect_ball_static(frame_og_crop.copy(),ball_model) 
-            
-        else:
-            
+            if boxStat is not None:
+                boxGreen=[boxStat[0]-sizeBox//4,boxStat[1]-sizeBox//4,sizeBox,sizeBox]
+                imgBoxGreen=frame_og_crop[boxGreen[1]:(boxGreen[1]+boxGreen[3]),boxGreen[0]:(boxGreen[0]+boxGreen[2]),:]
+                cv2.rectangle(frame_display, (int(boxGreen[0]), int(boxGreen[1])),(int(boxGreen[0]+boxGreen[2]), int(boxGreen[1]+boxGreen[3])), [255, 255, 255], 5) 
+                
+        
+        # frame substraction ######################################################################################################################################
+        frameHLS0=cv2.cvtColor(frame0,cv2.COLOR_BGR2YUV)
+        frameHLS1=cv2.cvtColor(frame1,cv2.COLOR_BGR2YUV)
+        
+        frame_substraction,var,sumTot=substraction(frameHLS0,frameHLS1,blur_type=0,blur=15,threshold_type=0,threshold=30,show=False,erode=4,dilate=10) #threshold=60
+        
+        maskHand1=cv2.bitwise_not(selectRedHSV(frame1,show=False))
+        maskHand0=cv2.bitwise_not(selectRedHSV(frame0,show=False))
+        maskHand=cv2.bitwise_or(maskHand0,maskHand0, mask=maskHand1)
+        
+        frame_substraction = cv2.bitwise_and(frame_substraction,frame_substraction, mask=maskHand)
+        
+        display(frame_substraction,name='remove hand')
+                                     
+        if(sumTot>0):
+            variance=np.append(variance,[[var,idx]],axis=0) 
+            #sumPix=np.append(sumPix,sumTot) q
+        
+        if ( var<=500) and  lastStaticPts is not None : #samePlace>=minDetec or (boxStat is None and samePlace<minDetec and lastStaticPts is not None):
+            """
             boxGreen=[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]
             imgBoxGreen=frame_og_crop[boxGreen[1]:(boxGreen[1]+boxGreen[3]),boxGreen[0]:(boxGreen[0]+boxGreen[2]),:]
             cv2.rectangle(frame_display, (int(boxGreen[0]), int(boxGreen[1])),(int(boxGreen[0]+boxGreen[2]), int(boxGreen[1]+boxGreen[3])), [20, 255, 20], 2) 
@@ -284,13 +315,43 @@ while(cap.isOpened()):
             
             print("Green: ",lastGreenScore,greenScore,(3/100)*sizeBox*sizeBox,abs(greenScore-lastGreenScore))
             
-            if abs(greenScore-lastGreenScore)>(3/100)*sizeBox*sizeBox or greenScore>(99/100)*sizeBox*sizeBox:
+            if  (boxStat is None and samePlace<minDetec) or abs(greenScore-lastGreenScore)>(3/100)*sizeBox*sizeBox or greenScore>(99/100)*sizeBox*sizeBox:
                 print("------------------------GREEN: MOVEMENT------------------------")
                 samePlace=0
-            else:
-                print("------------------------GREEN: STATIC------------------------")
-                lastGreenScore=greenScore
+                
+                for box in boundRect:
+                    pts=middle(box)
+                    P=[pts[0],pts[1],idx]
+                    movementPoint=np.append(movementPoint,[P],axis=0) 
+            """
             
+            dil,contours=drawContour(frame_substraction,kernelsize=10)
+            maskRec,boundRect=boundingBoxes(contours,show=True,width=W,height=H)
+            movementPoint=np.array([[0,0,0]])
+        
+            print("------------------------WAVELET CHECK STATIC BOX------------------------")
+            checkBoxStat=[[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]]
+            box_cp = frame_og_crop[checkBoxStat[0][1]:(checkBoxStat[0][1]+checkBoxStat[0][3]),checkBoxStat[0][0]:(checkBoxStat[0][0]+checkBoxStat[0][2]),:]
+            display(box_cp,name="box for wave")
+            verifyBox,waveCoeffBox = checkBoxes(frame_og_crop.copy(),checkBoxStat,coeff=25.0,wave_temp=template_W,wave_temp2=None,verify=True) #coeff=1.0
+            waveCoeff=np.append(waveCoeff,[[waveCoeffBox,idx]],axis=0) 
+            
+            if (boxStat is None and samePlace<minDetec) or verifyBox is None: 
+                print("------------------------WAVE: MOVEMENT------------------------")
+                samePlace=0
+                
+                for box in boundRect:
+                    pts=middle(box)
+                    P=[pts[0],pts[1],idx]
+                    movementPoint=np.append(movementPoint,[P],axis=0) 
+            else:
+                print("------------------------WAVE: STATIC------------------------")
+                #lastGreenScore=greenScore
+        
+        if(samePlace>=minDetec): 
+            print("------------------------TEMPLATE UPDATE------------------------")
+            template_W= Wavelet(template)
+            display(template,name='template right now')
                 
                 
             
@@ -312,37 +373,43 @@ while(cap.isOpened()):
                 particles=RE_initialize_particles(pts,N=NUM_PARTICLES,velocity=VEL_RANGE,size=34,time=TIME)
                 
                 template=frame_og_crop[pts[1]-sizeBox//2:pts[1]+sizeBox//2,pts[0]-sizeBox//2:pts[0]+sizeBox//2,:]
-                
-                #display(template,name='template right now')
-                
-                #template_W= Wavelet(template)
+                template_W= Wavelet(template)
                 lastGreenScore=selectGreenHSV(template)
                 
-                 
+                display(template,name='template right now')
+            
             allPoints=np.append(allPoints,[P],axis=0) 
             
-        ######################################################################################################################################   
-        type=-1.0
+        #particles############################################################################################ 
+        target=None
         
-        if boxStat is not None :
+        if boxStat is not None:
+            print("------------------------PARTICLE STATIC------------------------")
             pts=middle(boxStat)
             lastStaticPts=pts
-            type=0.0
-        elif verifyBox is not None:
-            pts=middle(verifyBox)
-            lastStaticPts=pts
-            type=0.0
-        elif boxSub is not None:
-            pts=middle(boxSub)
-            P=[pts[0],pts[1],idx,0.0]
-            wavePoint=np.append(wavePoint,[P],axis=0) 
-            type=1.0
+            target=[[pts[0],pts[1]]]
+            
+        elif len(movementPoint)>1:
+            print("------------------------PARTICLE SUBTRACTION------------------------")
+            target=movementPoint[1:]
+            wavePoint=np.concatenate((wavePoint,target))
             
             
-        if type>=0.0:
-            #particles############################################################################################
-            particles,location=particlesDetect(particles,pts,idx,N=NUM_PARTICLES,width=W,height=H,sigma=POS_SIGMA)  
-            allPoints=np.append(allPoints,[[location[0],location[1],location[2],type]],axis=0) 
+        if target is not None:
+            print("------------------------PARTICLE------------------------")
+            particles,location=particlesDetect(particles,target,idx,N=NUM_PARTICLES,width=W,height=H,sigma=POS_SIGMA)  
+            
+            pts=target[0]
+            minD=((pts[0]-location[0])**2+(pts[1]-location[1])**2)
+            
+            for item in target:
+                D=((item[0]-location[0])**2+(item[1]-location[1])**2)
+                if D<minD:
+                    minD=D
+                    pts=item
+            
+            allPoints=np.append(allPoints,[[location[0],location[1],idx,type]],axis=0) 
+            allPoints=np.append(allPoints,[[pts[0],pts[1],idx,type]],axis=0) 
             
 
         #plot######################################################################################################################################
@@ -355,11 +422,15 @@ while(cap.isOpened()):
         # all green 
         for index, item in enumerate(allPoints): 
             cv2.circle(frame_display, (int(item[0]),int(item[1])), 2, [20, 255, 20], 5)
+        # moving object
+        for index, item in enumerate(movementPoint): 
+            cv2.circle(frame_display, (int(item[0]),int(item[1])), 2, [160, 50, 220], 15)
+            
+            
+        """
         # wave purple  
         for index, item in enumerate(wavePoint): 
             cv2.circle(frame_display, (int(item[0]),int(item[1])), 2, [140, 20, 200], 5)
-            
-        """
         # static green box last static
         if verifyBox is not None:
             checkBoxStat=[[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]]
@@ -407,7 +478,7 @@ fig = plt.figure(figsize = (8,8)) ##############################################
 ax = fig.add_subplot(111, projection='3d')
 ax.grid()
 
-ax.scatter(allPoints[:,1],allPoints[:,0],allPoints[:,2],marker="+",color='g')
+ax.scatter(allPoints[:,1],allPoints[:,0],allPoints[:,2],marker="o",color='g')
 #ax.scatter(blobPoint[:,1],blobPoint[:,0],blobPoint[:,2],marker="+",color='b')
 #ax.scatter(wavePoint[:,1],wavePoint[:,0],wavePoint[:,2],marker="+",color='r')
 
@@ -423,11 +494,26 @@ ax.set_ylabel('x', labelpad=20)
 ax.set_xlabel('y', labelpad=20)
 ax.set_zlabel('t', labelpad=20)
 
-fig2 = plt.figure(figsize = (8,8))
-GSplot=GSplot[1:]
-plt.plot(GSplot)
+
+fig = plt.figure(figsize=(10, 7))
+
+fig.add_subplot(1,2,1)
+variance=variance[1:]
+plt.plot(variance[:,1],variance[:,0])
+limitey=[500,500]
+limitex=[0,idx]
+plt.plot(limitex,limitey)
+
+fig.add_subplot(1,2,2)
+waveCoeff=waveCoeff[1:]
+plt.plot(waveCoeff[:,1],waveCoeff[:,0])
+print(waveCoeff)
+limitey=[25.0,25.0]
+limitex=[0,idx]
+plt.plot(limitex,limitey)
 
 """
+
 fig2 = plt.figure(figsize = (8,8)) ######################################################################################################################################
 ax2 = fig2.add_subplot(111, projection='3d')
 ax2.grid()

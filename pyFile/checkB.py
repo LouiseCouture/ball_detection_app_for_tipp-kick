@@ -138,7 +138,7 @@ def checkBoxes(frame_diff, boundingBoxes ,show=False,coeff=150,wave_temp=None,wa
         
             diff=np.sum(diff)
             
-            diff_weight=( diff/3 ) # +( 1000 / sumGreen)#+tot_histogramm
+            diff_weight=( diff/2 ) # +( 1000 / sumGreen)#+tot_histogramm
             
             print("coeff box: ",diff_weight  )
         
@@ -152,7 +152,7 @@ def checkBoxes(frame_diff, boundingBoxes ,show=False,coeff=150,wave_temp=None,wa
     print("coeff MAXbox: ",maxDiff  )
       
     if maxBox is None:
-        return None,None
+        return None,diff_weight
     
     
     #if show:
@@ -160,5 +160,5 @@ def checkBoxes(frame_diff, boundingBoxes ,show=False,coeff=150,wave_temp=None,wa
     #    cv2.rectangle(frame_diff, (int(box[0]), int(box[1])),(int(box[0]+box[2]), int(box[1]+box[3])), (255,255,255), 2)        
     #    display(frame_diff,name='select box')
         
-    return maxBox,maxWave
+    return maxBox,maxDiff
 
