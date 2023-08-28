@@ -180,7 +180,8 @@ while boxStat is None:
     ret, frame_og= cap.read()
     boxStat = detect_ball_static(frame_og,ball_model) 
     
-box=[min(boxStat[0]-sizeBox//2,0),min(boxStat[0]-sizeBox//2,0),sizeBox,sizeBox]
+box=[max(boxStat[0]-sizeBox//2,0),max(boxStat[1]-sizeBox//2,0),sizeBox,sizeBox]
+template_box=box
 template=frame_og[box[1]:(box[1]+box[3]),box[0]:(box[0]+box[2]),:]
 template_W=Wavelet(template)
 
@@ -349,9 +350,11 @@ while(cap.isOpened()):
                 #lastGreenScore=greenScore
         
         if(samePlace>=minDetec): 
-            print("------------------------TEMPLATE UPDATE------------------------")
+            print("------------------------TEMPLATE UPDATE------------------------",template_box)
+            boxStat=template_box
             template_W= Wavelet(template)
             display(template,name='template right now')
+            cv2.rectangle(frame_display, (int(template_box[0]), int(template_box[1])),(int(template_box[0]+template_box[2]), int(template_box[1]+template_box[3])), (255,255,255), 5) 
                 
                 
             
@@ -369,10 +372,13 @@ while(cap.isOpened()):
                 samePlace+=1
                 
             if samePlace>=minDetec:
-                print("------------------------VERIFIED STATIC: TEMPLATE UPDATE------------------------")
                 particles=RE_initialize_particles(pts,N=NUM_PARTICLES,velocity=VEL_RANGE,size=34,time=TIME)
                 
-                template=frame_og_crop[pts[1]-sizeBox//2:pts[1]+sizeBox//2,pts[0]-sizeBox//2:pts[0]+sizeBox//2,:]
+                template_box=[max(pts[0]-sizeBox//2,0),max(pts[1]-sizeBox//2,0),sizeBox,sizeBox]
+                
+                print("------------------------VERIFIED STATIC: TEMPLATE UPDATE------------------------",pts,template_box,pts[0]-sizeBox//2,max([660,0]))
+                
+                template=frame_og_crop[ pts[1]-sizeBox//2:pts[1]+sizeBox//2 , pts[0]-sizeBox//2:pts[0]+sizeBox//2 , : ]
                 template_W= Wavelet(template)
                 lastGreenScore=selectGreenHSV(template)
                 
