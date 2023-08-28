@@ -142,7 +142,7 @@ minDetec=5
 movement=0
 
 #video ##################################################################################################################################################
-#cap = cv2.VideoCapture('video_record/output.mp4')
+cap = cv2.VideoCapture('video_record/output.mp4')
 cap = cv2.VideoCapture(0)
 # Check if camera opened successfully
 if (cap.isOpened()== False): 
@@ -290,7 +290,7 @@ while(cap.isOpened()):
         frameHLS0=cv2.cvtColor(frame0,cv2.COLOR_BGR2YUV)
         frameHLS1=cv2.cvtColor(frame1,cv2.COLOR_BGR2YUV)
         
-        frame_substraction,var,sumTot=substraction(frameHLS0,frameHLS1,blur_type=0,blur=15,threshold_type=0,threshold=30,show=False,erode=4,dilate=10) #threshold=60
+        frame_substraction,var,sumTot=substraction(frameHLS0,frameHLS1,blur_type=0,blur=15,threshold_type=0,threshold=30,show=True,erode=4,dilate=10) #threshold=60
         
         maskHand1=cv2.bitwise_not(selectRedHSV(frame1,show=False))
         maskHand0=cv2.bitwise_not(selectRedHSV(frame0,show=False))
@@ -298,7 +298,7 @@ while(cap.isOpened()):
         
         frame_substraction = cv2.bitwise_and(frame_substraction,frame_substraction, mask=maskHand)
         
-        display(frame_substraction,name='remove hand')
+        #display(frame_substraction,name='remove hand')
                                      
         if(sumTot>0):
             variance=np.append(variance,[[var,idx]],axis=0) 
@@ -327,7 +327,7 @@ while(cap.isOpened()):
             """
             
             dil,contours=drawContour(frame_substraction,kernelsize=10)
-            maskRec,boundRect=boundingBoxes(contours,show=True,width=W,height=H)
+            maskRec,boundRect=boundingBoxes(contours,show=False,width=W,height=H)
             movementPoint=np.array([[0,0,0]])
         
             print("------------------------WAVELET CHECK STATIC BOX------------------------")

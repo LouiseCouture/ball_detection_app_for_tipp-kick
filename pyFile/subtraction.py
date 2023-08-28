@@ -59,7 +59,7 @@ def substraction(y0,y1,blur_type=0,threshold_type=0,threshold=50,blur=29,show=Fa
     if show:
         displayFrame=frame_diff.copy()
         string="variance: {}".format(var)+"  sum pixel: {}".format(sumTot)
-        displayFrame = cv2.putText(displayFrame, string, (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, (220,220,220), 4, cv2.LINE_AA)
+        #displayFrame = cv2.putText(displayFrame, string, (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, (220,220,220), 4, cv2.LINE_AA)
         display(displayFrame,name='substraction1')
 
     return frame_diff,var,sumTot
