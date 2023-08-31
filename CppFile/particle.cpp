@@ -186,7 +186,7 @@ void ParticleFilter::resample(void) {
 		particles_resample.push_back(new OneParticle(particles[index]));
 	}
 
-	// -------------------------delet old particle------------------------
+	// -------------------------delete old particle------------------------
 	OneParticle* part;
 	for (int i = 0; i < N; i++) {
 		part = particles[i];

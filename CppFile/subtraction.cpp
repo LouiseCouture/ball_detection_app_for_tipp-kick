@@ -113,6 +113,10 @@ Mat selectSkinColor(Mat frame_HSV) { // this has been tested on white people onl
 
 	cv::bitwise_or(mask1, mask2, mask );
 
+	int erosion_size = 3;
+	Mat element_dil = cv::getStructuringElement(MORPH_ELLIPSE, Size(2 * erosion_size + 1, 2 * erosion_size + 1), Point(erosion_size, erosion_size));
+	cv::dilate(mask, mask, element_dil);
+
 	return mask;
 
 }
@@ -147,6 +151,30 @@ Rect detectMovingBall(Mat frame_mask, Mat frame_HSV, int max_size,int size_power
 	}
 
 	return best_obj;
+
+}
+
+vector<Rect> detectMovingObjects(Mat frame_mask, int max_size) {
+
+	dilate(frame_mask, frame_mask, Mat(), Point(-1, -1), 1);
+
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	findContours(frame_mask, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+	vector<Rect>objects;
+
+	for (int i = 0; i < contours.size(); i++) {
+
+		Rect rect = boundingRect(contours[i]);
+
+		if (rect.height <= max_size && rect.width <= max_size && rect.height >= max_size/4 && rect.width >= max_size / 4) {
+
+			objects.push_back(rect);
+		}
+	}
+
+	return objects ;
 
 }
 

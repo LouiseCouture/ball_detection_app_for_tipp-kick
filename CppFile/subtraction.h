@@ -65,4 +65,15 @@ Mat selectSkinColor(Mat frame_HSV);
 Rect detectMovingBall(Mat frame_mask, Mat frame_HSV, int max_size, int size_power2, vector<vector<vector<double>>> template_wave);
 
 
+/**
+*
+* @brief Take frame subtraction, return all moving object
+*
+* @param frame_mask
+*
+* @return Rect
+*
+*/
+vector<Rect> detectMovingObjects(Mat frame_mask, int max_size);
+
 #endif

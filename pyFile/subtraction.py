@@ -190,18 +190,18 @@ def boundingBoxes(contours,width,height,show=False):
     boundRect = [None]*len(contours)
     mask=np.zeros([height,width], dtype=np.int8 )
     
+    tailleMax=32*4
+    idx=0
     for i, c in enumerate(contours):
         contours_poly[i] = cv2.approxPolyDP(c, 5, True)
-        boundRect[i] = cv2.boundingRect(contours_poly[i])
-    
-    tailleMax=32*4
-    for item in boundRect:
+        item = cv2.boundingRect(contours_poly[i])
+        
         if item[2]<tailleMax and item[3]<tailleMax:
-            cv2.rectangle(mask, (int(item[0]), int(item[1])),(int(item[0]+item[2]), int(item[1]+item[3])),1, -1)
-        
+            boundRect[i]=item
+            idx+=1
     
-    if show:
         
+    if show:
         drawing = np.zeros((height, width, 3), dtype=np.uint8)
         
         for i in range(len(contours)):
@@ -212,4 +212,49 @@ def boundingBoxes(contours,width,height,show=False):
     
         display(drawing,name='all boxes')
 
-    return mask,boundRect
+    return mask,boundRect,idx
+
+############################################################################################################################################
+
+def directionObject(objectMoving_0,objectMoving_1, len_1):
+    
+    vectors=np.array([[[-1,-1],[-1,-1]]])
+    
+    for object_0 in objectMoving_0:
+        
+        x_0=object_0[0]+object_0[2]//2
+        y_0=object_0[1]+object_0[3]//2
+        
+        x_1=-1
+        y_1=-1
+        
+        dist_best=10000000
+        object_best=None
+        
+        for i in range(len_1-1):
+            
+            x_1=objectMoving_1[i][0]+objectMoving_1[i][2]//2
+            y_1=objectMoving_1[i][1]+objectMoving_1[i][3]//2
+            
+            dist=(x_1-x_0)**2 + (y_1-y_0)**2 
+            
+            if dist< dist_best:
+                object_best=objectMoving_1[i]
+                dist_best=dist
+        
+        if object_best is not None:
+            vectors=np.append(vectors,[[[x_0,y_0],[x_1,y_1]]],axis=0) 
+            objectMoving_1.remove(object_best)
+                
+    return vectors
+
+
+def selectObj_gettingAway(vectors, object_static):
+    for vect in vectors:
+        dist_0=(object_static[0]-vect[0][0])**2+(object_static[1]-vect[0][1])**2
+        dist_1=(object_static[0]-vect[1][0])**2+(object_static[1]-vect[1][1])**2
+        
+        if(dist_0<dist_1):
+            return np.array([vect[1][0],vect[1][1]]),vect
+    return np.array([-1,-1]),None
+    

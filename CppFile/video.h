@@ -8,7 +8,6 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
-#include "objectdetection.h"
 #include "subtraction.h"
 #include "wavelet.h"
 #include "particle.h"
@@ -38,8 +37,13 @@ private:
     int variance;
     int var_thrsh;
 
+    int first_movement;
+
     Point* ball_past_ObjDetec_pts;
     Point* ball_ObjDetec_pts;
+
+    Point last_static_pts;
+
     double dist_thrsh;
     int check_samePlace;  // number of time the object detection detected the ball at the same place
     int thresh_samePlace; // if check_samePlace > thresh_samePlace => veified static
@@ -48,6 +52,10 @@ private:
 
     Rect moving_ball_rect;
     Rect ball_past_ObjDetec_rect;
+
+    vector<Rect> objects_moving;
+    vector<Rect> last_objects_moving;
+    vector<Rect> vector_moving_obj; // not use as Rect but as vector: (pts1_x,pts1_y,pts2_x,pts2_y)
 
     vector<vector<vector<double>>> template_wave;
     double wave_thrsh;
@@ -71,6 +79,8 @@ public:
         variance = 0;
         var_thrsh = 30;
 
+        first_movement = 0;
+
         check_samePlace = 0;
         thresh_samePlace = 3;
 
@@ -81,6 +91,7 @@ public:
 
         part_filter = NULL;
         target_PartFilt = Point(-1,-1);
+        last_static_pts = Point(100, 100);
 
         pathModel = "C:\\Users\\lc100\Documents\\GitHub\\ball_detection_app_for_tipp-kick\\03_Ball_Detection\\models/ball_weights_V2.pt";
     }
@@ -108,6 +119,22 @@ public:
     */
     int frameSubtraction(void);
 
+
+    /**
+    *
+    * @brief Video method, compute vector of object moving
+    *
+    * @return int
+    */
+    int directionObject(void);
+
+    /**
+    *
+    * @brief Video method, select objt that is moving away from previous position
+    *
+    * @return int
+    */
+    int selectObj_gettingAway(void);
 
 };
 

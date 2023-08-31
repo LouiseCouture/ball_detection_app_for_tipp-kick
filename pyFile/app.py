@@ -94,9 +94,13 @@ movementPoint=np.array([[0,0,0]])
 #3D points wavePoint+particlePoint (x,y,t,type), 0=move, 1=static, 2=particle
 allPoints=np.array([[0,0,0,0]])
 
+#moving object of previous loop
+objectMoving=None
+
 sizeBox=38
 
 # RANSAC ##################################################################################################################################################
+"""
 size_slice=30 #40  #20
 #dist min for RANSAC
 distMinRANSAC=30 #35 #30     #25 #20 #70
@@ -120,7 +124,7 @@ all_lines=[ [ [[0,0,0],[0,0,0]],[[0,0,0],[0,0,0]] ] ]
 model=None
 lastwavePoint=None
 detector=initBlobDetect()
-
+"""
 #static detection ##################################################################################################################################################
 static=True   
 static_box=None
@@ -173,20 +177,18 @@ template=getTemplate(W,H,cap)
 template_W= Wavelet(template)
 """
 
-boxStat=None
-
 while boxStat is None:
-    print("------------------------LOOKING FOR TEMPLATE------------------------ ")
+    print("------------------------START: LOOKING FOR BALL----------------------- ")
     ret, frame_og= cap.read()
     boxStat = detect_ball_static(frame_og,ball_model) 
     
-box=[max(boxStat[0]-sizeBox//2,0),max(boxStat[1]-sizeBox//2,0),sizeBox,sizeBox]
-template_box=box
-template=frame_og[box[1]:(box[1]+box[3]),box[0]:(box[0]+box[2]),:]
-template_W=Wavelet(template)
+ball_pts=np.array([boxStat[0]+boxStat[2]//2,boxStat[1]-boxStat[3]//2])
+past_ball_pts=np.array([1,-1])
+print(past_ball_pts[0])
+print(ball_pts[0])
 
 #particle ##################################################################################################################################################
-NUM_PARTICLES=200
+NUM_PARTICLES=100
 VEL_RANGE=50.0
 TIME_VEL=jump
 POS_SIGMA =50.0
@@ -199,7 +201,7 @@ particles=initialize_particles(N=NUM_PARTICLES,velocity=VEL_RANGE,width=W,height
 ##################################################################################################################################################
 ##################################################################################################################################################
 ##################################################################################################################################################
-print("------------------------START------------------------ ")
+print("------------------------LOOP------------------------ ")
 
 #Read until video is completed
 while(cap.isOpened()):
@@ -232,59 +234,7 @@ while(cap.isOpened()):
         frame1 = frame_og_crop.copy()
            
         
-        #object detection ######################################################################################################################################
-        """
-        boxStat=None
-        if samePlace<minDetec:
-            boxStat = detect_ball_static(frame_og_crop.copy(),ball_model) 
-            
-        if (samePlace>=minDetec or boxStat is None) :
-            
-            verifyBox=None
-            
-            if lastStaticPts is not None: # has to verified last static box is still here
-                print("------------------------WAVELET CHECK STATIC BOX------------------------")
-                checkBoxStat=[[lastStaticPts[0]-34,lastStaticPts[1]-34,68,68]]
-                box_cp = frame_og_crop[checkBoxStat[0][1]:(checkBoxStat[0][1]+checkBoxStat[0][3]),checkBoxStat[0][0]:(checkBoxStat[0][0]+checkBoxStat[0][2]),:]
-                display(box_cp,name="box for wave")
-                
-                verifyBox,waveBoxStatic = checkBoxes(frame_og_crop.copy(),checkBoxStat,coeff=10.0,wave_temp=template_W,wave_temp2=None,verify=True) #coeff=1.0
-            
-            # frame substraction ######################################################################################################################################
-            frameHLS0=cv2.cvtColor(frame0,cv2.COLOR_BGR2YUV)
-            frameHLS1=cv2.cvtColor(frame1,cv2.COLOR_BGR2YUV)
-            
-            frame_substraction=substraction(frameHLS0,frameHLS1,blur_type=0,blur=21,threshold_type=0,threshold=150,show=True,erode=4,dilate=10) #threshold=120
-                
-            if verifyBox is None: #staticbox not here, ball moved
-                print("------------------------WAVELET LOST STATIC BOX------------------------")
-                boundRect=None
-                dil,contours=drawContour(frame_substraction,kernelsize=30)
-                #put boxes around objects
-                maskRec,boundRect=boundingBoxes(contours,show=True,width=W,height=H)
-                #detect the ball in one of the boxes (if any)
-                boxSub,_ = checkBoxes(frame_og_crop.copy(),boundRect,coeff=20.0,wave_temp=template_W,wave_temp2=None,show=False) #coeff=15qqq
-                
-                if boxSub is None: # don't see movement -> go back to static
-                    print("------------------------WAVELET DON'T SEE MOVEMENT------------------------")
-                    samePlace=0
-            else:
-                print("------------------------WAVELET FOUND STATIC BOX: TEMPLATE UPDATE------------------------")
-                template=frame_og_crop[verifyBox[1]:(verifyBox[1]+verifyBox[3]),verifyBox[0]:(verifyBox[0]+verifyBox[2]),:]
-                display(template,name='template right now')
-                template_W= waveBoxStatic
-                
-        """
-        
-        boxStat=None
-        if samePlace<minDetec:
-            print("------------------------OBJECT DETECTION------------------------")
-            boxStat = detect_ball_static(frame_og_crop.copy(),ball_model) 
-            if boxStat is not None:
-                boxGreen=[boxStat[0]-sizeBox//4,boxStat[1]-sizeBox//4,sizeBox,sizeBox]
-                imgBoxGreen=frame_og_crop[boxGreen[1]:(boxGreen[1]+boxGreen[3]),boxGreen[0]:(boxGreen[0]+boxGreen[2]),:]
-                cv2.rectangle(frame_display, (int(boxGreen[0]), int(boxGreen[1])),(int(boxGreen[0]+boxGreen[2]), int(boxGreen[1]+boxGreen[3])), [255, 255, 255], 5) 
-                
+   
         
         # frame substraction ######################################################################################################################################
         frameHLS0=cv2.cvtColor(frame0,cv2.COLOR_BGR2YUV)
@@ -304,118 +254,76 @@ while(cap.isOpened()):
             variance=np.append(variance,[[var,idx]],axis=0) 
             #sumPix=np.append(sumPix,sumTot) q
         
-        if ( var<=500) and  lastStaticPts is not None : #samePlace>=minDetec or (boxStat is None and samePlace<minDetec and lastStaticPts is not None):
-            """
-            boxGreen=[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]
-            imgBoxGreen=frame_og_crop[boxGreen[1]:(boxGreen[1]+boxGreen[3]),boxGreen[0]:(boxGreen[0]+boxGreen[2]),:]
-            cv2.rectangle(frame_display, (int(boxGreen[0]), int(boxGreen[1])),(int(boxGreen[0]+boxGreen[2]), int(boxGreen[1]+boxGreen[3])), [20, 255, 20], 2) 
-            
-            greenScore=selectGreenHSV(imgBoxGreen)
-            
-            GSplot=np.append(GSplot,[abs(greenScore-lastGreenScore)]) 
-            
-            print("Green: ",lastGreenScore,greenScore,(3/100)*sizeBox*sizeBox,abs(greenScore-lastGreenScore))
-            
-            if  (boxStat is None and samePlace<minDetec) or abs(greenScore-lastGreenScore)>(3/100)*sizeBox*sizeBox or greenScore>(99/100)*sizeBox*sizeBox:
-                print("------------------------GREEN: MOVEMENT------------------------")
-                samePlace=0
-                
-                for box in boundRect:
-                    pts=middle(box)
-                    P=[pts[0],pts[1],idx]
-                    movementPoint=np.append(movementPoint,[P],axis=0) 
-            """
-            
+        if ( var<=500) : 
+
             dil,contours=drawContour(frame_substraction,kernelsize=10)
-            maskRec,boundRect=boundingBoxes(contours,show=False,width=W,height=H)
-            movementPoint=np.array([[0,0,0]])
-        
-            print("------------------------WAVELET CHECK STATIC BOX------------------------")
-            checkBoxStat=[[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]]
-            box_cp = frame_og_crop[checkBoxStat[0][1]:(checkBoxStat[0][1]+checkBoxStat[0][3]),checkBoxStat[0][0]:(checkBoxStat[0][0]+checkBoxStat[0][2]),:]
-            display(box_cp,name="box for wave")
-            verifyBox,waveCoeffBox = checkBoxes(frame_og_crop.copy(),checkBoxStat,coeff=25.0,wave_temp=template_W,wave_temp2=None,verify=True) #coeff=1.0
-            waveCoeff=np.append(waveCoeff,[[waveCoeffBox,idx]],axis=0) 
+            maskRec,boundRect,lenRect=boundingBoxes(contours,show=False,width=W,height=H)
             
-            if (boxStat is None and samePlace<minDetec) or verifyBox is None: 
-                print("------------------------WAVE: MOVEMENT------------------------")
-                samePlace=0
+            if lenRect>0  and objectMoving is None:
+                objectMoving=boundRect
+            if lenRect>0  and objectMoving is not None:
                 
-                for box in boundRect:
-                    pts=middle(box)
-                    P=[pts[0],pts[1],idx]
-                    movementPoint=np.append(movementPoint,[P],axis=0) 
-            else:
-                print("------------------------WAVE: STATIC------------------------")
-                #lastGreenScore=greenScore
+                vectors=directionObject(objectMoving,boundRect,lenRect)
+                
+                found_pts,vect_best=selectObj_gettingAway(vectors, ball_pts)
+                
+                objectMoving=boundRect
+                
+                if found_pts[0]>-1:
+                    cv2.arrowedLine(frame_display, (vect_best[0][0],vect_best[0][1]), (vect_best[1][0],vect_best[1][1]), (255,255,255), 5)
+                    
+                    past_ball_pts[0]=ball_pts[0]
+                    past_ball_pts[1]=ball_pts[1]
+                    
+                    ball_pts[0]=found_pts[0]
+                    ball_pts[1]=found_pts[1]
+                    
+                    samePlace=0
+        else:
+            objectMoving=None
         
-        if(samePlace>=minDetec): 
-            print("------------------------TEMPLATE UPDATE------------------------",template_box)
-            boxStat=template_box
-            template_W= Wavelet(template)
-            display(template,name='template right now')
-            cv2.rectangle(frame_display, (int(template_box[0]), int(template_box[1])),(int(template_box[0]+template_box[2]), int(template_box[1]+template_box[3])), (255,255,255), 5) 
-                
-                
+        #object detection ######################################################################################################################################
+
+        boxStat=None
+        if  var>500 and  samePlace<minDetec:
             
+            print("------------------------OBJECT DETECTION------------------------")
+            
+            boxStat = detect_ball_static(frame_og_crop.copy(),ball_model) 
+            
+            if boxStat is not None:
+                
+                past_ball_pts[0]=ball_pts[0]
+                past_ball_pts[1]=ball_pts[1]
+                
+                ball_pts[0]=boxStat[0]+boxStat[2]//2
+                ball_pts[1]=boxStat[1]-boxStat[3]//2
+                
+                
         # Type of movement ######################################################################################################################################
-        if boxStat is not None and lastStaticPts is not None:
-            pts=middle(boxStat)
-            P=[pts[0],pts[1],idx,1.5]
-            D=((pts[0]-lastStaticPts[0])**2+(pts[1]-lastStaticPts[1])**2)
+        
+        print("aaaaaaaaaaaaa",past_ball_pts[0])
+        
+        if ball_pts[0]>-1 and past_ball_pts[0]>-1 :
             
-            if D>100:
+            dist=(ball_pts[0]-past_ball_pts[0])**2+(ball_pts[1]-past_ball_pts[1])**2
+            
+            if dist>100:
                 print("------------------------MOVING------------------------")
                 samePlace=0
-            elif (samePlace<minDetec):
+            else:
                 print("------------------------STATIC------------------------")
                 samePlace+=1
-                
             if samePlace>=minDetec:
-                particles=RE_initialize_particles(pts,N=NUM_PARTICLES,velocity=VEL_RANGE,size=34,time=TIME)
+                print("------------------------VERIFIED STATIC: TEMPLATE UPDATE------------------------")
                 
-                template_box=[max(pts[0]-sizeBox//2,0),max(pts[1]-sizeBox//2,0),sizeBox,sizeBox]
-                
-                print("------------------------VERIFIED STATIC: TEMPLATE UPDATE------------------------",pts,template_box,pts[0]-sizeBox//2,max([660,0]))
-                
-                template=frame_og_crop[ pts[1]-sizeBox//2:pts[1]+sizeBox//2 , pts[0]-sizeBox//2:pts[0]+sizeBox//2 , : ]
-                template_W= Wavelet(template)
-                lastGreenScore=selectGreenHSV(template)
-                
-                display(template,name='template right now')
-            
-            allPoints=np.append(allPoints,[P],axis=0) 
-            
         #particles############################################################################################ 
-        target=None
-        
-        if boxStat is not None:
-            print("------------------------PARTICLE STATIC------------------------")
-            pts=middle(boxStat)
-            lastStaticPts=pts
-            target=[[pts[0],pts[1]]]
-            
-        elif len(movementPoint)>1:
-            print("------------------------PARTICLE SUBTRACTION------------------------")
-            target=movementPoint[1:]
-            wavePoint=np.concatenate((wavePoint,target))
             
             
-        if target is not None:
+        if ball_pts[0]>-1:
             print("------------------------PARTICLE------------------------")
-            particles,location=particlesDetect(particles,target,idx,N=NUM_PARTICLES,width=W,height=H,sigma=POS_SIGMA)  
-            
-            pts=target[0]
-            minD=((pts[0]-location[0])**2+(pts[1]-location[1])**2)
-            
-            for item in target:
-                D=((item[0]-location[0])**2+(item[1]-location[1])**2)
-                if D<minD:
-                    minD=D
-                    pts=item
-            
+            particles,location=particlesDetect(particles,[ball_pts],idx,N=NUM_PARTICLES,width=W,height=H,sigma=POS_SIGMA)  
             allPoints=np.append(allPoints,[[location[0],location[1],idx,type]],axis=0) 
-            allPoints=np.append(allPoints,[[pts[0],pts[1],idx,type]],axis=0) 
             
 
         #plot######################################################################################################################################
@@ -432,29 +340,10 @@ while(cap.isOpened()):
         for index, item in enumerate(movementPoint): 
             cv2.circle(frame_display, (int(item[0]),int(item[1])), 2, [160, 50, 220], 15)
             
-            
-        """
-        # wave purple  
-        for index, item in enumerate(wavePoint): 
-            cv2.circle(frame_display, (int(item[0]),int(item[1])), 2, [140, 20, 200], 5)
-        # static green box last static
-        if verifyBox is not None:
-            checkBoxStat=[[lastStaticPts[0]-sizeBox//2,lastStaticPts[1]-sizeBox//2,sizeBox,sizeBox]]
-            cv2.rectangle(frame_display, (int(verifyBox[0]), int(verifyBox[1])),(int(verifyBox[0]+verifyBox[2]), int(verifyBox[1]+verifyBox[3])), [20, 255, 20], 2) 
-            
-        # Blob  
-        for index, item in enumerate(blobPoint): 
-            cv2.circle(frame_og_crop, (int(item[0]),int(item[1])), 2, [0, 0, 0], 5)
-            
-        drawLines(all_lines,frame_og_crop,thick=distMinRANSAC)
         
-        for index, item in enumerate(corrected): 
-            cv2.circle(frame_og_crop, (int(item[0]),int(item[1])), 2, [20, 20, 255], 5)
-        
-        for index, item in enumerate(particleLoc): 
-            cv2.circle(frame_og_crop, (int(item[0]),int(item[1])), 2, [20, 20, 255], 15)  
-        """
-        
+        cv2.circle(frame_display, (int(ball_pts[0]),int(ball_pts[1])), 2, [255,255,255], 15)
+            
+            
         display(frame_display,name='detection')
         
         idx+=jump
